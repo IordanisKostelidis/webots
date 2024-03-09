@@ -1,10 +1,10 @@
-// Copyright 1996-2021 Cyberbotics Ltd.
+// Copyright 1996-2023 Cyberbotics Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,12 +26,14 @@ struct WbUpdatedFieldInfo;
 struct WbFieldGetRequest;
 struct WbTrackedFieldInfo;
 struct WbTrackedPoseInfo;
+struct WbTrackedContactPointInfo;
 class WbFieldSetRequest;
 
 class WbBaseNode;
+class WbDataStream;
 class WbNode;
 class WbRobot;
-class WbTransform;
+class WbPose;
 class WbSolid;
 class WbWrenLabelOverlay;
 class WbField;
@@ -45,8 +47,8 @@ public:
   virtual ~WbSupervisorUtilities();
 
   void handleMessage(QDataStream &stream);
-  void writeAnswer(QDataStream &stream);
-  void writeConfigure(QDataStream &stream);
+  void writeAnswer(WbDataStream &stream);
+  void writeConfigure(WbDataStream &stream);
   void processImmediateMessages(bool blockRegeneration = false);
   void postPhysicsStep();
   void reset();  // should be called when controllers are restarted
@@ -68,6 +70,9 @@ private slots:
   void notifyNodeUpdate(WbNode *node);
   void notifyFieldUpdate();
   void updateProtoRegeneratedFlag(WbNode *node);
+  void removeTrackedContactPoints(QObject *obj);
+  void removeTrackedPoseNode(QObject *obj);
+  void removeTrackedField(QObject *obj);
 
 private:
   WbRobot *mRobot;
@@ -79,17 +84,20 @@ private:
   int mFoundNodeParentUniqueId;
   bool mFoundNodeIsProto;
   bool mFoundNodeIsProtoInternal;
-  int mFoundFieldId;
+  int mFoundFieldIndex;
   int mFoundFieldType;
   int mFoundFieldCount;
+  QString mFoundFieldName;
   bool mFoundFieldIsInternal;
+  int mNodeFieldCount;
   int mGetNodeRequest;
   QList<int> mUpdatedNodeIds;
-  WbTransform *mNodeGetPosition;
-  WbTransform *mNodeGetOrientation;
-  QPair<WbTransform *, WbTransform *> mNodeGetPose;
+  WbPose *mNodeGetPosition;
+  WbPose *mNodeGetOrientation;
+  std::pair<WbPose *, WbPose *> mNodeGetPose;
   WbSolid *mNodeGetCenterOfMass;
   WbSolid *mNodeGetContactPoints;
+  int mNodeIdGetContactPoints;
   bool mGetContactPointsIncludeDescendants;
   WbSolid *mNodeGetStaticBalance;
   WbSolid *mNodeGetVelocity;
@@ -118,11 +126,12 @@ private:
   QVector<WbFieldSetRequest *> mFieldSetRequests;
   struct WbFieldGetRequest *mFieldGetRequest;
 
-  void pushSingleFieldContentToStream(QDataStream &stream, WbField *field);
-  void pushRelativePoseToStream(QDataStream &stream, WbTransform *fromNode, WbTransform *toNode);
+  void pushSingleFieldContentToStream(WbDataStream &stream, WbField *field);
+  void pushRelativePoseToStream(WbDataStream &stream, WbPose *fromNode, WbPose *toNode);
+  void pushContactPointsToStream(WbDataStream &stream, WbSolid *solid, int solidId, bool includeDescendants);
   void initControllerRequests();
   void deleteControllerRequests();
-  void writeNode(QDataStream &stream, const WbBaseNode *baseNode, int messageType);
+  void writeNode(WbDataStream &stream, const WbBaseNode *baseNode, int messageType);
   const WbNode *getNodeFromDEF(const QString &defName, bool allowSearchInProto, const WbNode *fromNode = NULL);
   const WbNode *getNodeFromProtoDEF(const WbNode *fromNode, const QString &defName) const;
   WbNode *getProtoParameterNodeInstance(int nodeId, const QString &functionName) const;
@@ -135,6 +144,7 @@ private:
   QList<int> mLabelIds;
   QVector<WbTrackedFieldInfo> mTrackedFields;
   QVector<WbTrackedPoseInfo> mTrackedPoses;
+  QVector<WbTrackedContactPointInfo> mTrackedContactPoints;
 };
 
 #endif

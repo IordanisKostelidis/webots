@@ -1,10 +1,10 @@
-// Copyright 1996-2021 Cyberbotics Ltd.
+// Copyright 1996-2023 Cyberbotics Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -87,13 +87,31 @@ bool Node::isProto() const {
   return wb_supervisor_node_is_proto(nodeRef);
 }
 
+int Node::getNumberOfFields() const {
+  return wb_supervisor_node_get_number_of_fields(nodeRef);
+}
+
+int Node::getProtoNumberOfFields() const {
+  return wb_supervisor_node_get_proto_number_of_fields(nodeRef);
+}
+
 Field *Node::getField(const std::string &fieldName) const {
   WbFieldRef fieldRef = wb_supervisor_node_get_field(nodeRef, fieldName.c_str());
   return Field::findField(fieldRef);
 }
 
+Field *Node::getFieldByIndex(const int index) const {
+  WbFieldRef fieldRef = wb_supervisor_node_get_field_by_index(nodeRef, index);
+  return Field::findField(fieldRef);
+}
+
 Field *Node::getProtoField(const std::string &fieldName) const {
   WbFieldRef fieldRef = wb_supervisor_node_get_proto_field(nodeRef, fieldName.c_str());
+  return Field::findField(fieldRef);
+}
+
+Field *Node::getProtoFieldByIndex(const int index) const {
+  WbFieldRef fieldRef = wb_supervisor_node_get_proto_field_by_index(nodeRef, index);
   return Field::findField(fieldRef);
 }
 
@@ -111,6 +129,18 @@ const double *Node::getPose() const {
 
 const double *Node::getPose(const Node *fromNode) const {
   return wb_supervisor_node_get_pose(nodeRef, fromNode->nodeRef);
+}
+
+void Node::enableContactPointsTracking(int samplingPeriod, bool includeDescendants) const {
+  wb_supervisor_node_enable_contact_points_tracking(nodeRef, samplingPeriod, includeDescendants);
+}
+
+void Node::disableContactPointsTracking(bool includeDescendants) const {
+  wb_supervisor_node_disable_contact_points_tracking(nodeRef);
+}
+
+ContactPoint *Node::getContactPoints(bool includeDescendants, int *size) const {
+  return wb_supervisor_node_get_contact_points(nodeRef, includeDescendants, size);
 }
 
 void Node::enablePoseTracking(int samplingPeriod) const {
@@ -195,4 +225,8 @@ void Node::saveState(const std::string &stateName) {
 
 void Node::loadState(const std::string &stateName) {
   wb_supervisor_node_load_state(nodeRef, stateName.c_str());
+}
+
+void Node::setJointPosition(double position, int index) {
+  wb_supervisor_node_set_joint_position(nodeRef, position, index);
 }

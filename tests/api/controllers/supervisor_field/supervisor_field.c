@@ -182,6 +182,11 @@ int main(int argc, char **argv) {
   // set SFFloat on a different field type
   wb_supervisor_field_set_mf_color(field, 0, doubleArray);
   charArray = wb_supervisor_field_get_mf_string(field, 0);
+  int size = strlen(charArray);
+  while (size - 21 > 0) {
+    charArray++;
+    size--;
+  }
   ts_assert_string_equal(charArray, "textures/white256.png",
                          "Returned value for Texture url field should be \"textures/white256.png\", not \"%s\"", charArray);
 
@@ -403,6 +408,16 @@ int main(int argc, char **argv) {
   vector3_modified = wb_supervisor_field_get_sf_vec3f(field);
   ts_assert_doubles_equal(3, vector3_modified, vector3_expected, "Delayed 'wb_supervisor_field_set_sf_vec3f' failed");
 
+  // test that removing a tracked node doesn't cause a crash
+  wb_robot_step(TIME_STEP);
+  field = wb_supervisor_node_get_field(box, "translation");
+  wb_supervisor_field_enable_sf_tracking(field, TIME_STEP);
+  wb_robot_step(2 * TIME_STEP);
+  wb_supervisor_node_remove(box);
+  wb_robot_step(2 * TIME_STEP);
+  wb_supervisor_field_get_sf_vec3f(field);
+  wb_supervisor_field_disable_sf_tracking(field);
+
   // test internal SFFloat was read-only (wb_supervisor_field_set_sf_float failed)
   // field reference is invalid after regeneration
   int internal_field_type = wb_supervisor_field_get_type(internal_field);
@@ -425,6 +440,48 @@ int main(int argc, char **argv) {
   mf_float_expected = wb_supervisor_field_get_mf_float(field, 1);
   ts_assert_double_equal(mf_float_expected, 2.0,
                          "Consecutive wb_supervisor_field_set_mf_float: second set instruction failed.");
+  wb_robot_step(TIME_STEP);
+
+  // Check getting field by index
+  const int fields_count = wb_supervisor_node_get_number_of_fields(mfTest);
+  ts_assert_int_equal(fields_count, 9, "Number of fields of MF_FIELDS node is wrong");
+  WbFieldRef field0 = wb_supervisor_node_get_field_by_index(mfTest, 0);
+  ts_assert_string_equal(wb_supervisor_field_get_name(field0), "mfBool", "Name of first field of MF_FIELDS node is wrong");
+  ts_assert_boolean_equal(field0 == wb_supervisor_node_get_field(mfTest, "mfBool"),
+                          "Different WbFieldRef returned for the same 'mfBool' field.");
+  WbFieldRef field2 = wb_supervisor_node_get_field_by_index(mfTest, 2);
+  ts_assert_string_equal(wb_supervisor_field_get_name(field2), "mfFloat", "Name of third field of MF_FIELDS node is wrong");
+  ts_assert_boolean_equal(field2 == wb_supervisor_node_get_field(mfTest, "mfFloat"),
+                          "Different WbFieldRef returned for the same 'mfFloat' field.");
+  WbFieldRef field8 = wb_supervisor_node_get_field_by_index(mfTest, fields_count - 1);
+  ts_assert_string_equal(wb_supervisor_field_get_name(field8), "mfNode", "Name of last field of MF_FIELDS node is wrong");
+  ts_assert_boolean_equal(field8 == wb_supervisor_node_get_field(mfTest, "mfNode"),
+                          "Different WbFieldRef returned for the same 'mfNode' field.");
+  WbFieldRef fieldInvalid = wb_supervisor_node_get_field_by_index(mfTest, -1);
+  ts_assert_pointer_null(fieldInvalid, "It should not be possible to retrieve a field using a negative index");
+  fieldInvalid = wb_supervisor_node_get_field_by_index(mfTest, fields_count);
+  ts_assert_pointer_null(fieldInvalid, "It should not be possible to retrieve a field using an out of range index");
+
+  const int proto_fields_count = wb_supervisor_node_get_proto_number_of_fields(mfTest);
+  ts_assert_int_equal(proto_fields_count, 17, "Number of PROTO internal fields of MF_FIELDS node is wrong");
+  field0 = wb_supervisor_node_get_proto_field_by_index(mfTest, 0);
+  ts_assert_string_equal(wb_supervisor_field_get_name(field0), "translation",
+                         "Name of first PROTO internal field of MF_FIELDS node is wrong: \"%s\" should be \"translation\"",
+                         field0);
+  field2 = wb_supervisor_node_get_proto_field_by_index(mfTest, 2);
+  ts_assert_string_equal(wb_supervisor_field_get_name(field2), "children",
+                         "Name of third PROTO internal field of MF_FIELDS node is wrong: \"%s\" should be \"children\"",
+                         field2);
+  field8 = wb_supervisor_node_get_proto_field_by_index(mfTest, fields_count - 1);
+  ts_assert_string_equal(wb_supervisor_field_get_name(field8), "boundingObject",
+                         "Name of ninth PROTO internal field of MF_FIELDS node is wrong: \"%s\" should be \"boundingObject\"",
+                         field8);
+  fieldInvalid = wb_supervisor_node_get_proto_field_by_index(mfTest, -5);
+  ts_assert_pointer_null(fieldInvalid, "It should not be possible to retrieve a PROTO internal field using a negative index");
+  fieldInvalid = wb_supervisor_node_get_proto_field_by_index(mfTest, proto_fields_count);
+  ts_assert_pointer_null(fieldInvalid,
+                         "It should not be possible to retrieve a PROTO internal field using an out of range index");
+
   wb_robot_step(TIME_STEP);
 
   // supervisor field update

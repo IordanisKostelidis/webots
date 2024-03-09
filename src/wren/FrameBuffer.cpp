@@ -1,10 +1,10 @@
-// Copyright 1996-2021 Cyberbotics Ltd.
+// Copyright 1996-2023 Cyberbotics Ltd.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     https://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -131,7 +131,9 @@ namespace wren {
     blit(0, true, false, false, 0, 0, mWidth, mHeight, 0, 0, mWidth, mHeight);
   }
 
-  void FrameBuffer::release() { glstate::releaseFrameBuffer(mGlName); }
+  void FrameBuffer::release() {
+    glstate::releaseFrameBuffer(mGlName);
+  }
 
   void FrameBuffer::initiateCopyToPbo() {
     if (!mGlName)
@@ -167,14 +169,13 @@ namespace wren {
     glstate::bindPixelPackBuffer(mOutputDrawBuffers[index].mGlNamePbo);
 
     const Texture::GlFormatParams &params = drawBufferFormat(index);
-    const int rowSizeInBytes = params.mPixelSize * mWidth;
-    const int totalSizeInBytes = rowSizeInBytes * mHeight;
 
-    void *start = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, totalSizeInBytes, GL_MAP_READ_BIT);
-    assert(start);
-    memcpy(data, start, totalSizeInBytes);
-
-    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+#ifdef __EMSCRIPTEN__
+    EM_ASM_({ Module.ctx.getBufferSubData(Module.ctx.PIXEL_PACK_BUFFER, $2, HEAPU8.subarray($0, $0 + $1)); }, data,
+            params.mPixelSize * mWidth * mHeight, 0);
+#else
+    glGetBufferSubData(GL_PIXEL_PACK_BUFFER, 0, params.mPixelSize * mWidth * mHeight, data);
+#endif
 
     glstate::bindPixelPackBuffer(currentPixelPackBuffer);
   }
@@ -212,7 +213,7 @@ namespace wren {
     glReadPixels(x, (flipY ? mHeight - 1 - y : y), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, data);
 #endif
     if (config::requiresDepthBufferDistortion()) {
-      GLfloat *fData = (GLfloat *)data;
+      GLfloat *fData = static_cast<GLfloat *>(data);
       fData[0] = fData[0] * fData[0];
     }
     glstate::bindReadFrameBuffer(currentReadFrameBuffer);
@@ -256,7 +257,8 @@ namespace wren {
     mIsCopyingEnabled(false),
     mWidth(0),
     mHeight(0),
-    mDepthTexture(NULL) {}
+    mDepthTexture(NULL) {
+  }
 
   const Texture::GlFormatParams &FrameBuffer::drawBufferFormat(size_t index) const {
     if (mOutputDrawBuffers[index].mIsRenderBuffer)

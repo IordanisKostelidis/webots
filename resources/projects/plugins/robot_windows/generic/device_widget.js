@@ -18,9 +18,9 @@ DeviceWidget.commands = []; // Commands to be sent to the C library.
 DeviceWidget.motorCommands = []; // Motor commands to be sent to the C library.
 DeviceWidget.touchedCheckboxes = [];
 DeviceWidget.supportedDeviceTypes = [
-  'Accelerometer', 'Camera', 'Compass', 'DistanceSensor', 'GPS', 'Gyro',
-  'InertialUnit', 'Lidar', 'LightSensor', 'LinearMotor', 'PositionSensor',
-  'Radar', 'RangeFinder', 'RotationalMotor', 'TouchSensor'
+  'Accelerometer', 'Altimeter', 'Camera', 'Compass', 'DistanceSensor', 'GPS', 'Gyro',
+  'InertialUnit', 'Lidar', 'LightSensor', 'LinearMotor', 'PositionSensor', 'Radar',
+  'RangeFinder', 'RotationalMotor', 'TouchSensor', 'VacuumGripper'
 ];
 
 DeviceWidget.prototype.initialize = function(device) {
@@ -52,6 +52,11 @@ DeviceWidget.prototype.initialize = function(device) {
     div += '<input type="checkbox" title="Enable/disable the lidar point cloud." id="' + device.htmlName + '-cloud-point-checkbox" device="' + device.htmlName + '" onclick="DeviceWidget.pointCloudCheckboxCallback(this)"/>';
     div += '<span>Point Cloud</span>';
     div += '</h2>';
+  } else if (device.type === 'VacuumGripper') {
+    div += '<h2 class="device-option-enable-label">';
+    div += '<input type="checkbox" title="Turn on/off the vacuum gripper." id="' + device.htmlName + '-turn-on-checkbox" device="' + device.htmlName + '" onclick="DeviceWidget.vacuumGripperTurnOnCallback(this)"/>';
+    div += '<span>Turned on</span>';
+    div += '</h2>';
   }
   div += '<div id="' + device.htmlName + '-content" class="device-content"/>';
   div += '</div>';
@@ -61,6 +66,8 @@ DeviceWidget.prototype.initialize = function(device) {
 
   if (device.type === 'Accelerometer')
     this.createGeneric3DDevice(device, TimeplotWidget.AutoRangeType.STRETCH, -20.0, 20.0, '[m/s^2]');
+  else if (device.type === 'Altimeter')
+    this.createGeneric1DDevice(device, TimeplotWidget.AutoRangeType.STRETCH, 0, 0.5, '[m]');
   else if (device.type === 'Camera')
     this.createGenericImageDevice(device);
   else if (device.type === 'Compass')
@@ -100,7 +107,8 @@ DeviceWidget.prototype.initialize = function(device) {
       this.createGeneric1DDevice(device, TimeplotWidget.AutoRangeType.STRETCH, 0, 20.0, 'Raw');
     else // bumper
       this.createGeneric1DDevice(device, TimeplotWidget.AutoRangeType.STRETCH, 0, 1.0, 'Raw');
-  }
+  } else if (device.type === 'VacuumGripper')
+      this.createGeneric1DDevice(device, TimeplotWidget.AutoRangeType.NONE, -0.2, 1.2, 'Presence');
 };
 
 DeviceWidget.prototype.createRadar = function(device) {
@@ -114,7 +122,7 @@ DeviceWidget.prototype.createMotor = function(device, autoRange, minValue, maxVa
   const mean = 0.5 * (maxValue + minValue);
   const step = 0.01 * (maxValue - minValue); // 1%
   const slider = appendNewElement(device.name + '-content',
-    '<input type="range" min="' + minValue + '" max="' + maxValue + '" value="' + mean + '" step="' + step + '"' +
+    '<input type="range" orient="vertical" min="' + minValue + '" max="' + maxValue + '" value="' + mean + '" step="' + step + '"' +
     ' class="motor-slider"' + customStyle +
     ' id="' + device.htmlName + '-slider"' +
     ' device="' + device.htmlName + '"' +
@@ -250,6 +258,14 @@ DeviceWidget.pointCloudCheckboxCallback = function(checkbox) {
   DeviceWidget.touchedCheckboxes.push(checkbox);
 };
 
+DeviceWidget.vacuumGripperTurnOnCallback = function(checkbox) {
+  if (checkbox.checked)
+    DeviceWidget.commands.push(checkbox.getAttribute('device') + ':vacuumGripperTurnOn');
+  else
+    DeviceWidget.commands.push(checkbox.getAttribute('device') + ':vacuumGripperTurnOff');
+  DeviceWidget.touchedCheckboxes.push(checkbox);
+};
+
 DeviceWidget.comboboxCallback = function(combobox) {
   const type = combobox.getAttribute('deviceType');
   const name = combobox.getAttribute('deviceName');
@@ -304,7 +320,12 @@ DeviceWidget.updateDeviceWidgets = function(data, selectedDeviceType) {
       if (checkbox && value.update.length > 0)
         DeviceWidget.applyToUntouchedCheckbox(checkbox, true);
     } else if (value.image && widget.image) {
-      widget.image.style.backgroundImage = 'url("' + value.image + '")';
+      const img = new Image();
+      img.src = value.image;
+      img.decode()
+      .then(() => {
+        widget.image.style.backgroundImage = 'url("' + img.src + '")';
+      })
       if (checkbox)
         DeviceWidget.applyToUntouchedCheckbox(checkbox, true);
       if (value.cloudPointEnabled !== undefined) {
@@ -321,6 +342,10 @@ DeviceWidget.updateDeviceWidgets = function(data, selectedDeviceType) {
       if (value.segmentationEnabled !== undefined) {
         const segmentationCheckbox = document.getElementById(deviceName + '-segmentation-checkbox');
         DeviceWidget.applyToUntouchedCheckbox(segmentationCheckbox, value.segmentationEnabled);
+      }
+      if (value.vaccumGripperOn !== undefined) {
+        const vacuumGripperCheckbox = document.getElementById(deviceName + '-turn-on-checkbox');
+        DeviceWidget.applyToUntouchedCheckbox(vacuumGripperCheckbox, value.vaccumGripperOn);
       }
     } else if (value.targets !== undefined && widget.plots) {
       widget.plots[0].refreshTargets(value.targets);
